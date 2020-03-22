@@ -1,5 +1,5 @@
-import {TableReservationApplication} from './application';
 import {ApplicationConfig} from '@loopback/core';
+import {TableReservationApplication} from './application';
 
 export {TableReservationApplication};
 
@@ -10,7 +10,6 @@ export async function main(options: ApplicationConfig = {}) {
 
   const url = app.restServer.url;
   console.log(`Server is running at ${url}`);
-  console.log(`Try ${url}/ping`);
 
   return app;
 }
