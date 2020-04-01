@@ -1,86 +1,54 @@
-import {Count, CountSchema, Filter, FilterExcludingWhere, repository, Where} from '@loopback/repository';
-import {del, get, getModelSchemaRef, HttpErrors, param, patch, post, put, requestBody} from '@loopback/rest';
+import {
+  Count,
+  CountSchema,
+  Filter,
+  FilterExcludingWhere,
+  repository,
+  Where,
+} from '@loopback/repository';
+import {
+  post,
+  param,
+  get,
+  getFilterSchemaFor,
+  getModelSchemaRef,
+  getWhereSchemaFor,
+  patch,
+  put,
+  del,
+  requestBody,
+} from '@loopback/rest';
 import {User} from '../models';
 import {UserRepository} from '../repositories';
-const PasswordHasher = require('password-hasher');
-
-interface HashedPassword {
-  hashpass: string,
-  salt: string,
-}
 
 export class UserController {
   constructor(
     @repository(UserRepository)
-    public userRepository: UserRepository,
+    public userRepository : UserRepository,
   ) {}
-
-  hashMethod = 'ssha512';
 
   @post('/users', {
     responses: {
       '200': {
         description: 'User model instance',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                accessKey: {type: 'string'},
-                profile: getModelSchemaRef(User, {
-                  exclude: ['salt', 'password']
-                })
-              }
-            }
-          }
-        },
+        content: {'application/json': {schema: getModelSchemaRef(User)}},
       },
     },
   })
-  create(
+  async create(
     @requestBody({
       content: {
         'application/json': {
           schema: getModelSchemaRef(User, {
             title: 'NewUser',
-            exclude: ['id', 'salt', 'created', 'modified', 'emailVerified'],
+            exclude: ['id'],
           }),
         },
       },
     })
     user: Omit<User, 'id'>,
   ): Promise<User> {
-    return new Promise((resolve, reject) => {
-      // email password
-      if (user.email.trim().length === 0 || user.password.trim().length === 0) {
-        throw new HttpErrors.UnprocessableEntity('Email and password is required params')
-      }
-
-      this.userRepository.findOne({
-        where: {
-          email: {regexp: new RegExp(user.email, 'i')}
-        }
-      }).then((userInst: User | null) => {
-        if (userInst !== null) {
-          reject(new HttpErrors.UnprocessableEntity('User with given email exists'))
-          return
-        }
-
-        const passwordObj: HashedPassword = this.generateHashedPassword(user.password);
-
-        const userPayload: object = {
-          email: user.email,
-          password: passwordObj.hashpass,
-          salt: passwordObj.salt,
-
-        }
-
-        this.userRepository.create(userPayload)
-          .then(resolve)
-          .catch(reject)
-
-      }).catch(reject)
-    })
+    return this.userRepository.create(user);
   }
 
   @get('/users/count', {
@@ -203,12 +171,5 @@ export class UserController {
   })
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.userRepository.deleteById(id);
-  }
-
-  generateHashedPassword(password: string): HashedPassword {
-    const out = PasswordHasher.createHashAndSalt(this.hashMethod, password, 32)
-    const salt = out.salt.toString('base64')
-    const hash = out.hash.toString('base64')
-    return {hashpass: hash, salt: salt}
   }
 }
